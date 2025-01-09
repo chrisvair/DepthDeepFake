@@ -1,2 +1,0 @@
-torch==2.5.1+cu124  # PyTorch version with CUDA 12.4 support
-numpy==1.26.3       # NumPy version
