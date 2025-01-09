@@ -18,7 +18,7 @@ import cv_viewer.tracking_viewer as cv_viewer
 import os
 
 # Folder to save zoomed images
-output_folder = "zoomed_images"
+output_folder = "christina_3"
 os.makedirs(output_folder, exist_ok=True)
 
 lock = Lock()
