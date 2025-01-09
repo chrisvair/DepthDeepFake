@@ -15,4 +15,9 @@ WORKDIR "/faceswap"
 RUN python -m pip install --upgrade pip
 RUN python -m pip --no-cache-dir install -r ./requirements/requirements_nvidia.txt
 
-CMD ["/bin/bash"]
+COPY pipeline.py /faceswap/pipeline.py
+COPY models /faceswap/models
+COPY src /faceswap/src
+
+#CMD ["/bin/bash"]
+CMD ["python", "/faceswap/pipeline.py"]
