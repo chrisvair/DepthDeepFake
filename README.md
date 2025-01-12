@@ -45,4 +45,4 @@ Third implementation to be completed with the deepfake model
    - `opencv-python`
    - `numpy` 1.26.3
 3. **Stereolabs ZED SDK**:
-   - Install the [ZED SDK](https://www.stereolabs.com/zed-sdk/) for camera functionality.
+   - Install the [ZED SDK](https://www.stereolabs.com/en-fr/developers/release) for camera functionality.
