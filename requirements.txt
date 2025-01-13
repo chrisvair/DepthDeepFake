@@ -1,0 +1,4 @@
+ultralytics
+pyzed
+opencv-python
+numpy==1.26.3
