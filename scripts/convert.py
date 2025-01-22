@@ -84,7 +84,7 @@ class Convert():
         logger.debug("Initializing %s: (args: %s)", self.__class__.__name__, arguments)
         self._args = handle_deprecated_cliopts(arguments)
 
-        self._images = ImagesLoader(self._args.input_dir, fast_count=True)
+        self.init_images(self._args.input_dir)
         self._alignments = self._get_alignments()
         self._opts = OptionalActions(self._args, self._images.file_list, self._alignments)
 
@@ -105,6 +105,9 @@ class Convert():
                                     configfile=configfile)
         self._patch_threads = self._get_threads()
         logger.debug("Initialized %s", self.__class__.__name__)
+
+    def init_images(self, path):
+        self._images = ImagesLoader(path, fast_count=True)
 
     @property
     def _queue_size(self) -> int:

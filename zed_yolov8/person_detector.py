@@ -152,6 +152,11 @@ def main_builtin(output_folder, lock):
             sleep(1)
             continue
 
+        if not globals.convert_ready:
+            logging.info("Waiting for conversion thread to start")
+            sleep(1)
+            continue
+
         ret, frame = cap.read()
         if not ret:
             print("Failed to grab frame")
@@ -193,9 +198,9 @@ def main_builtin(output_folder, lock):
         globals.extract_signal = True
 
         # Wait for extraction
-        while globals.extract_signal:
+        while globals.extract_signal or globals.convert_signal:
             sleep(1)
-            logging.info("Waiting for extraction thread to finish")
+            logging.info("Waiting for faceswap threads to finish")
 
         # Display the frame
         cv2.imshow("Camera Feed", frame)
@@ -256,6 +261,9 @@ def main_zed(zed, init_params, runtime_params, output_folder, lock):
         if not globals.extract_ready:
             print("Waiting for extract signal")
             continue
+
+        if not globals.convert_ready:
+            print("Waiting for convert signal")
 
         if zed.grab(runtime_params) == sl.ERROR_CODE.SUCCESS:
             # -- Get the image
@@ -329,8 +337,8 @@ def main_zed(zed, init_params, runtime_params, output_folder, lock):
             globals.extract_signal = True
 
             # Wait for extraction
-            while globals.extract_signal:
-                sleep(0.01)
+            while globals.extract_signal or globals.convert_signal:
+                sleep(1)
 
             # -- Display
             # Retrieve display data

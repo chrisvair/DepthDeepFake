@@ -7,3 +7,4 @@ extract_ready = False
 convert_ready = False
 image_net = False
 extract_signal = False
+convert_signal = False

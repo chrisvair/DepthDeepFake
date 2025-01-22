@@ -8,6 +8,7 @@ from argparse import Namespace
 from zed_yolov8.person_detector import main
 from lib.config import generate_configs
 from scripts.extract import Filter, Extractor, _Extract
+from scripts.convert import Convert
 import logging
 import globals
 from time import sleep
@@ -23,13 +24,52 @@ def delete_folder(folder_path):
     except Exception as e:
         print(f"An error occurred while deleting the folder: {e}")
 
+def convert_thread(camera_folder, lock, model_folder):
+
+    globals.convert_ready = False
+    extract_folder = os.path.join(camera_folder, "extract")
+    convert_folder = os.path.join(camera_folder, "convert")
+
+    ### Init Convert service
+    convert_args = {'exclude_gpus': None, 'configfile': None, 'loglevel': 'INFO', 'logfile': None,
+                    'redirect_gui': False, 'depr_logfile_LF_F': None,
+                    'input_dir': extract_folder, 'output_dir': convert_folder, 'alignments_path': None,
+                    'depr_alignments_al_p': None, 'reference_video': None, 'model_dir': model_folder,
+                    'color_adjustment': 'avg-color', 'mask_type': 'extended', 'writer': 'opencv',
+                    'output_scale': 100, 'frame_ranges': None, 'face_scale': 0.0, 'input_aligned_dir': None,
+                    'nfilter': None, 'filter': None, 'ref_threshold': 0.4, 'jobs': 0, 'on_the_fly': False,
+                    'keep_unchanged': False, 'swap_model': False, 'singleprocess': False,
+                    'depr_singleprocess_sp_P': False, 'depr_reference-video_ref_r': None,
+                    'depr_frame-ranges_fr_R': None, 'depr_output-scale_osc_O': None, 'depr_on-the-fly_otf_T': False}
+    convert = None
+    try:
+        convert = Convert(Namespace(**convert_args))
+    except Exception as e:
+        logging.debug(f"Error initializing Convert service: {e}")
+
+    globals.convert_ready = True
+    while not globals.exit_signal:
+        if globals.convert_signal:
+            lock.acquire()
+            if convert is not None:
+                convert.init_images(convert_args.input_dir)
+                convert.process()
+            else:
+                logging.DEBUG("Convert service is not initialized. Skipping conversion.")
+            lock.release()
+            globals.convert_signal = False
+
+
 def extract_thread(camera_folder, lock):
 
     globals.extract_ready = False
-    output_folder = os.path.join(camera_folder,"extract")
-    args = Namespace(**{'exclude_gpus': None, 'configfile': None, 'loglevel': 'INFO', 'logfile': None,
+
+    extract_folder = os.path.join(camera_folder,"extract")
+
+    ### Init extract service
+    extract_args = Namespace(**{'exclude_gpus': None, 'configfile': None, 'loglevel': 'INFO', 'logfile': None,
                         'redirect_gui': False, 'depr_logfile_LF_F': None, 'input_dir': camera_folder,
-                        'output_dir': output_folder, 'alignments_path': None, 'depr_alignments_al_p': None,
+                        'output_dir': extract_folder, 'alignments_path': None, 'depr_alignments_al_p': None,
                         'batch_mode': False, 'detector': 's3fd', 'aligner': 'fan', 'masker': None,
                         'normalization': 'none', 're_feed': 0, 're_align': False, 'rotate_images': None,
                         'identity': False, 'min_size': 0, 'nfilter': None, 'filter': None, 'ref_threshold': 0.6,
@@ -41,43 +81,39 @@ def extract_thread(camera_folder, lock):
                         'depr_singleprocess_sp_P': False, 'depr_skip-existing-faces_sf_e': False,
                         'depr_skip-saving-faces_ssf_K': False})
 
-    configfile = args.configfile if hasattr(args, "configfile") else None
-    normalization = None if args.normalization == "none" else args.normalization
+    configfile = extract_args.configfile if hasattr(extract_args, "configfile") else None
+    normalization = None if extract_args.normalization == "none" else extract_args.normalization
     maskers = ["components", "extended"]
-    maskers += args.masker if args.masker else []
+    maskers += extract_args.masker if extract_args.masker else []
     recognition = ("vgg_face2"
-                   if args.identity or args.filter or args.nfilter
+                   if extract_args.identity or extract_args.filter or extract_args.nfilter
                    else None)
 
-    _extractor = Extractor(args.detector,
-                           args.aligner,
+    _extractor = Extractor(extract_args.detector,
+                           extract_args.aligner,
                            maskers,
                            recognition=recognition,
                            configfile=configfile,
-                           multiprocess=not args.singleprocess,
-                           exclude_gpus=args.exclude_gpus,
-                           rotate_images=args.rotate_images,
-                           min_size=args.min_size,
+                           multiprocess=not extract_args.singleprocess,
+                           exclude_gpus=extract_args.exclude_gpus,
+                           rotate_images=extract_args.rotate_images,
+                           min_size=extract_args.min_size,
                            normalize_method=normalization,
-                           re_feed=args.re_feed,
-                           re_align=args.re_align)
+                           re_feed=extract_args.re_feed,
+                           re_align=extract_args.re_align)
 
-    _filter = Filter(args.ref_threshold,
-                              args.filter,
-                              args.nfilter,
-                              _extractor)
-
-    extract = _Extract(_extractor, args)
-    size = args.size if hasattr(args, "size") else 256
+    extract = _Extract(_extractor, extract_args)
     globals.extract_ready = True
+
+
     while not globals.exit_signal:
         if globals.extract_signal:
             lock.acquire()
-            extract._loader.init_images(args.input_dir)
+            extract._loader.init_images(extract_args.input_dir)
             extract.process()
             lock.release()
             globals.extract_signal = False
-
+            globals.convert_signal = True
             print(globals.zoomed_in_image.shape)
 
 if __name__ == '__main__':
@@ -87,6 +123,7 @@ if __name__ == '__main__':
     parser.add_argument('--img_size', type=int, default=416, help='inference size (pixels)')
     parser.add_argument('--conf_thres', type=float, default=0.4, help='object confidence threshold')
     parser.add_argument('--output_folder', type=str, default="./salah", help='output folder')
+    parser.add_argument('--model_folder', type=str, default="./models/model_christina_lou", help='Faceswap model folder')
 
     opt = parser.parse_args()
 
@@ -104,8 +141,12 @@ if __name__ == '__main__':
     extract_signal = False
     extract_ready = False
 
-    extract_thread = Thread(target=extract_thread, kwargs={'camera_folder':output_folder, 'lock': lock})
-    extract_thread.start()
+    extract_t = Thread(target=extract_thread, kwargs={'camera_folder':output_folder, 'lock': lock})
+    extract_t.start()
+
+    convert_t = Thread(target=convert_thread, kwargs={'camera_folder': output_folder, 'lock': lock,
+                                                           "model_folder": opt.model_folder})
+    convert_t.start()
 
     with torch.no_grad():
         main(output_folder, opt, lock)
