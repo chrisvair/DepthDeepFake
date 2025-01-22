@@ -499,12 +499,14 @@ class PipelineLoader():
                  aligned_filenames: list[str] | None = None) -> None:
         logger.debug("Initializing %s: (path: %s, extractor: %s, aligned_filenames: %s)",
                      self.__class__.__name__, path, extractor, aligned_filenames)
-        self._images = ImagesLoader(path, fast_count=True)
+        self.init_images(path)
         self._extractor = extractor
         self._threads: list[MultiThread] = []
         self._aligned_filenames = [] if aligned_filenames is None else aligned_filenames
         logger.debug("Initialized %s", self.__class__.__name__)
 
+    def init_images(self, path):
+        self._images = ImagesLoader(path, fast_count=True)
     @property
     def is_video(self) -> bool:
         """ bool: ``True`` if the input location is a video file, ``False`` if it is a folder of
