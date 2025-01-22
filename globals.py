@@ -1,0 +1,9 @@
+exit_signal = False
+run_signal = False
+zoomed_in_image = None
+detections = None
+frame_counter = 0
+extract_ready = False
+convert_ready = False
+image_net = False
+extract_signal = False
